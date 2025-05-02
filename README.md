@@ -1,6 +1,6 @@
 # 933 Assignment
 
-This is the code repo for 933 assignment, based on the previous code from **Character Echoes**. The current goal is to redo the code for best practice and delete those unwanted parts.
+This is the code repo for 933 assignment, based on the previous code from **Character Echoes**. The current goal is to find a local model and change the api logic.
 
 ---
 
@@ -8,9 +8,6 @@ This is the code repo for 933 assignment, based on the previous code from **Char
 
 - **Roleplay with Shakespearean Characters**  
   Talk to Hamlet, Lady Macbeth, Juliet, Romeo, and more, each with their own unique speaking style and knowledge drawn from Shakespeare’s works.
-
-- **Upload Your Own Story**  
-  Upload a `.txt` file of your own writing (or other historical fiction), and create characters based on it! The AI's responses will be based solely on the uploaded content.
 
 - **Modern English or Bard Style**  
   Choose whether you want conversations in poetic Shakespearean English or simple modern English.
@@ -68,7 +65,6 @@ streamlit run app.py
 
 - Can be deployed easily on **Streamlit Cloud** or **Hugging Face Spaces** or any choice, just need to modify some of the code.
 - Remember to safely configure your API Key via secret management tools if deploy or put it into environemental variables if run locally.
-- Demo Link: https://legends-ai-roleplay.streamlit.app
 - ## Here's an example screenshot:
   ![Character Echoes demo](assets/demo.jpg)
 
