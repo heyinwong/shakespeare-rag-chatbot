@@ -1,6 +1,6 @@
 # 933 Assignment
 
-This is the code repo for 933 assignment, based on the previous code from **Character Echoes**.
+This is the code repo for 933 assignment, based on the previous code from **Character Echoes**. The current goal is to redo the code for best practice and delete those unwanted parts.
 
 ---
 
