@@ -1,23 +1,6 @@
-# Character Echoes
+# 933 Assignment
 
-**Character Echoes** is an AI-powered roleplay companion that enables users to interact with **historical** and **fictional characters** through immersive conversation. This project is built as an MVP to demonstrate the potential for **educational tools**, **interactive storytelling**, and **creative exploration** using AI-driven dialogue. 
-
----
-
-## Purpose
-
-While many AI chatbots today rely on **predefined prompt** and **manual fine-tuning** for known characters, they often lack flexibility when it comes to **less popular figures** or **custom narratives**. Most of the products are purely prompt based and can not output accurate results when it comes to historical figures through quote searching or validation. This project seeks to address this gap by creating a flexible roleplay environment where users can:
-
-- Upload their own literary works, notes, or slides
-- Create or simulate _any_ character based on real or fictional content
-- Engage in conversations for **language learning**, **storytelling**, or **historical education**
-- Gain accurate results since the model will use the file as its knowledge base.
-
-Because I am a solo participant with limited time, I focused this project on Shakespeare and a custom character option — inspired by a dear friend who loves literature and Shakespeare. The final goal is to eventually extend this platform beyond Shakespeare to **mythologies**, **historical figures**, **novels**, or **user-generated worlds** — offering new possibilities for:
-
-- Teachers could upload slides and have students interact with a simulated historical figure.
-- Writers could upload drafts and simulate conversations between characters.
-- Learners could engage with language, context, and creativity in real-time dialogue.
+This is the code repo for 933 assignment, based on the previous code from **Character Echoes**.
 
 ---
 
@@ -25,9 +8,6 @@ Because I am a solo participant with limited time, I focused this project on Sha
 
 - **Roleplay with Shakespearean Characters**  
   Talk to Hamlet, Lady Macbeth, Juliet, Romeo, and more, each with their own unique speaking style and knowledge drawn from Shakespeare’s works.
-
-- **Custom Character Roleplay**  
-  Enter any character from Shakespeare’s plays, and the AI will simulate their personality.
 
 - **Upload Your Own Story**  
   Upload a `.txt` file of your own writing (or other historical fiction), and create characters based on it! The AI's responses will be based solely on the uploaded content.
@@ -45,7 +25,6 @@ Because I am a solo participant with limited time, I focused this project on Sha
 - "Summarize Act 3 Scene 1 of Macbeth in modern English."
 - "Hamlet, what do you think about fate?"
 - "Juliet, would you still love Romeo in today's world?"
-- "Talk to a custom character from my own novel."
 
 ---
 
@@ -90,8 +69,8 @@ streamlit run app.py
 - Can be deployed easily on **Streamlit Cloud** or **Hugging Face Spaces** or any choice, just need to modify some of the code.
 - Remember to safely configure your API Key via secret management tools if deploy or put it into environemental variables if run locally.
 - Demo Link: https://legends-ai-roleplay.streamlit.app
-- ## Here's an example screenshot: 
-![Character Echoes demo](assets/demo.jpg)
+- ## Here's an example screenshot:
+  ![Character Echoes demo](assets/demo.jpg)
 
 ---
 
@@ -106,7 +85,6 @@ streamlit run app.py
 
 ## Author
 
-**Xixian Huang**  
-for the [Microsoft AI Agent Hackathon](https://github.com/microsoft/AI_Agents_Hackathon)
+**Xixian Huang**
 
 ---
