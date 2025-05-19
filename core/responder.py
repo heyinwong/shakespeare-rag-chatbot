@@ -1,19 +1,31 @@
-import os
-from openai import OpenAI
-import streamlit as st
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 
-# Use env var first, fallback to secrets
-api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key)
+# === Device Setup ===
+device = (
+    torch.device("mps") if torch.backends.mps.is_available()
+    else torch.device("cuda") if torch.cuda.is_available()
+    else torch.device("cpu")
+)
 
-def get_openai_response(messages, model="gpt-3.5-turbo"):
+# === Load Model & Tokenizer ===
+tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
+model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-large")
+model.to(device)
+model.eval()
+
+# === Inference Function ===
+def get_flan_response(prompt: str, max_new_tokens=200):
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=600
-        )
-        return response.choices[0].message.content
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(device)
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                do_sample=True,             # ✅ 开启采样模式
+                temperature=0.7,            # ✅ 控制创意程度（0.7 通常比较平衡）
+                top_p=0.9                   # ✅ 核采样
+            )
+        return tokenizer.decode(outputs[0], skip_special_tokens=True)
     except Exception as e:
-        return f"⚠️ An error occurred: {str(e)}"
+        return f"⚠️ Error: {str(e)}"

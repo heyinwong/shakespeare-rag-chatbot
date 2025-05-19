@@ -1,3 +1,4 @@
+transformers
+torch
+faiss-cpu
 streamlit
-openai
-python-dotenv
