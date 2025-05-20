@@ -1,26 +1,22 @@
 import streamlit as st
 import os
+import re
+import html
 from dotenv import load_dotenv
 from utils.styles import set_custom_style
-from core.search import load_tfidf_index, search_similar
-from core.responder import get_flan_response
-import re
+from core.search import load_faiss_index, search_similar
+from core.responder import get_model_response
 
-# ====== MUST BE FIRST ======
 st.set_page_config(page_title="Whispers of Will", layout="centered")
-
-# ====== Load style + env ======
 set_custom_style()
 load_dotenv()
 
-# ====== Utility: extract quoted phrase ======
 def extract_quoted_phrase(text: str) -> str:
     matches = re.findall(r'"(.*?)"', text)
-    return matches[0] if matches else text
+    return matches[0] if matches else ""
 
-# ====== Utility: quote filtering ======
 def filter_relevant_quote(results, user_input):
-    quote_match = re.search(r'["](.+?)["]', user_input)
+    quote_match = re.search(r'"(.+?)"', user_input)
     if quote_match:
         target_phrase = quote_match.group(1).lower()
         norm_phrase = re.sub(r"[^\w\s]", "", target_phrase)
@@ -30,53 +26,139 @@ def filter_relevant_quote(results, user_input):
         user_keywords = [w for w in re.findall(r"\w+", user_input.lower()) if len(w) > 2]
         def score_fn(text):
             return sum(kw in text.lower() for kw in user_keywords)
-
     scored = [(score_fn(r["text"]), r) for r in results]
     scored.sort(reverse=True, key=lambda x: x[0])
     return [scored[0][1]] if scored else []
 
-# ====== Main Query Logic ======
-def handle_bard_query(user_input):
-    query = extract_quoted_phrase(user_input)
-    lowered = query.lower()
+def is_scene_summary(text: str) -> bool:
+    keywords = ["summarise", "summarize", "summary", "what happened", "explain the scene"]
+    return any(k in text.lower() for k in keywords)
 
-    # 判断任务类型
-    if any(k in lowered for k in ["summarise", "summarize", "summary", "what happened"]):
+def has_quoted_phrase(text: str) -> bool:
+    return bool(re.findall(r'"(.*?)"', text))
+
+def safe_truncate(text, max_chars=6000):
+    truncated = text[:max_chars]
+    last_period = truncated.rfind(".")
+    if last_period != -1 and last_period > max_chars * 0.6:
+        return truncated[:last_period+1]
+    return truncated
+
+def summarize_exchange(user_input: str, bard_response: str) -> str:
+    summarization_prompt = f"""
+You are a concise assistant. Summarize the following Q&A in one short sentence (under 20 words), stating only what the user asked about.
+
+Question: {user_input}
+Answer: {bard_response}
+Summary:""".strip()
+
+    summary = get_model_response(
+        summarization_prompt,
+        temperature=0.3,
+        top_p=0.8,
+        max_new_tokens=50
+    )
+    print("[DEBUG] Memory summary:", summary.strip())
+    return summary.strip()
+
+def handle_bard_query(user_input: str):
+    if is_scene_summary(user_input):
+        mode = "scene"
+    elif has_quoted_phrase(user_input):
+        mode = "quote"
+    else:
+        mode = "general"
+
+    print(f"[DEBUG] Mode: {mode}")
+
+    memory_prefix = ""
+    if "memory_chain" in st.session_state and st.session_state.memory_chain:
+        recent_memories = "\n".join(st.session_state.memory_chain[-5:])
+        memory_prefix = f"""Conversation so far (summary of past exchanges):
+{recent_memories}
+
+Now the user asks:
+"{user_input}""".strip()
+
+    if mode == "scene":
         level = "scene"
-        task_instruction = "Please summarise the scene in modern English."
-    else:
+        df, index = load_faiss_index(level)
+        raw_results = search_similar(user_input, df, index, level=level, top_k=3)
+        if raw_results:
+            r = raw_results[0]
+            scene_text = safe_truncate(r['text'])
+            base_prompt = f"""
+You are a Shakespeare expert.
+
+The following is a scene excerpt from one of Shakespeare's plays.
+
+Scene: {r['act']}, {r['scene']} from {r['play']}
+
+Content:
+{scene_text}
+
+Please summarise this scene in plain modern English. Mention the play and the scene.
+
+Do not make up the story. Summarise based on what you have.
+""".strip()
+        else:
+            base_prompt = f"""
+You are a Shakespeare expert.
+
+The user asked to summarise a scene: "{user_input}"
+
+Unfortunately, no matching scene was found. Please respond based on your general knowledge of Shakespeare's plays.
+""".strip()
+
+    elif mode == "quote":
         level = "sentence"
-        task_instruction = "Explain the quote in simple modern English. What does it mean emotionally or symbolically?"
+        quote_text = extract_quoted_phrase(user_input)
+        df, index = load_faiss_index(level)
+        raw_results = search_similar(quote_text, df, index, level=level, top_k=3)
+        results = filter_relevant_quote(raw_results, user_input)
+        if results:
+            r = results[0]
+            base_prompt = f"""
+You are a Shakespeare expert.
 
-    # 检索上下文
-    vectorizer, tfidf_matrix, metadata = load_tfidf_index(level=level)
-    raw_results = search_similar(query, vectorizer, tfidf_matrix, metadata, level=level, top_k=5)
-    results = filter_relevant_quote(raw_results, query)
+The user is asking about this quote:
 
-    if results:
-        r = results[0]
-        quote_line = query.strip('"“”')
-        full_context = f'{r["text"]}  ({r["play"]}, {r["act"]}, {r["scene"]})'
-        citation = f'This quote appears in <strong>{r["play"]}</strong>, <em>{r["act"]}</em>, <em>{r["scene"]}</em>.'
+"{quote_text}"
 
-        prompt = f'Explain the meaning of the quote: "{quote_line}"'
+It appears in {r['play']}, {r['act']}, {r['scene']}.
+
+Please always answer the user where the quote appears and explain what it means in plain modern English and why it is important or well-known. Keep your tone helpful and natural.
+""".strip()
+        else:
+            base_prompt = f"""
+The user asked: "{user_input}"
+
+Unfortunately, no matching quote was found. Please respond using your general knowledge of Shakespeare's works.
+""".strip()
+
     else:
-        citation = ""
-        prompt = f"""
-You are a helpful Shakespeare assistant.
+        base_prompt = f"""
+You are a helpful Shakespeare expert.
 
 The user asked: "{user_input}"
 
-Unfortunately, no relevant quotes were found. Please respond using your general knowledge of Shakespeare's works.
+Please answer clearly and accurately, referring to known facts or themes from Shakespeare's plays. If appropriate, mention the character, act, or scene—but only if you are confident.
 """.strip()
 
-    print("DEBUG prompt passed to flan:\n", prompt[:1000] + "..." if len(prompt) > 1000 else prompt)
-    response = get_flan_response(prompt)
-    return response, citation
+    final_prompt = f"{memory_prefix}\n\n{base_prompt}" if memory_prefix else base_prompt
+    print("[DEBUG] Final prompt:\n", final_prompt[:800] + "..." if len(final_prompt) > 800 else final_prompt)
+
+    response = get_model_response(final_prompt, temperature=0.2, top_p=0.9, max_new_tokens=512)
+
+    if "memory_chain" not in st.session_state:
+        st.session_state.memory_chain = []
+    summary = summarize_exchange(user_input, response)
+    st.session_state.memory_chain.append(summary)
+
+    return response
 
 # ====== UI Layout ======
-st.title(" Whispers of Will")
-
+st.title("Whispers of Will")
 st.markdown("<div class='bard-label'>Ask something:</div>", unsafe_allow_html=True)
 user_input = st.text_area("Your question", height=130, label_visibility="collapsed")
 
@@ -88,16 +170,19 @@ with col2:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "memory_chain" not in st.session_state:
+    st.session_state.memory_chain = []
 
 if clear:
     st.session_state.chat_history = []
+    st.session_state.memory_chain = []
     st.rerun()
 
 if respond and user_input.strip():
     with st.spinner("Summoning response..."):
-        response, citation = handle_bard_query(user_input)
+        response = handle_bard_query(user_input)
     st.session_state.chat_history.append({"role": "user", "text": user_input})
-    st.session_state.chat_history.append({"role": "bard", "text": response, "cite": citation})
+    st.session_state.chat_history.append({"role": "bard", "text": response})
 
 elif respond:
     st.warning("Please enter a message.")
@@ -110,18 +195,18 @@ for message in reversed(st.session_state.chat_history):
             <strong>You:</strong><br>{message['text']}
         </div>""", unsafe_allow_html=True)
     else:
+        clean = re.sub(r"[*_#`]", "", message["text"])
+        escaped = html.escape(clean)
         st.markdown(f"""
         <div style='background-color: #f9f1e7; padding: 1rem; margin: 1rem 0; border-radius: 12px; color: #2b1d0e; border: 2px solid #c76b3e; max-width: 80%; margin-right: auto;'>
-            <strong>The Bard:</strong><br>
-            {'<div style="color:#666;font-size:0.9rem;">' + message.get('cite','') + '</div><br>' if message.get('cite') else ''}
-            {message['text']}
+            <strong>The Bard:</strong><br><pre style='white-space: pre-wrap; margin: 0;'>{escaped}</pre>
         </div>""", unsafe_allow_html=True)
 
 # ====== Footer ======
 st.markdown("---")
 st.markdown(
     "<div style='text-align:center; font-size: 0.85rem; margin-top: 2rem;'>"
-    "Crafted with \u2615 by <strong>Xixian Huang</strong>"
+    "Crafted with ☕ by <strong>Xixian Huang</strong>"
     "</div>",
     unsafe_allow_html=True
 )

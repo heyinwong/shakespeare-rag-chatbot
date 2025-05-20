@@ -1,31 +1,29 @@
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
+from llama_cpp import Llama
+import os
 
-# === Device Setup ===
-device = (
-    torch.device("mps") if torch.backends.mps.is_available()
-    else torch.device("cuda") if torch.cuda.is_available()
-    else torch.device("cpu")
+# === Load quantized Mistral-7B-Instruct ===
+MODEL_PATH = ("models/mistral-7b-instruct-v0.1.Q4_K_M.gguf")
+
+llm = Llama(
+    model_path=MODEL_PATH,
+    n_ctx=2048,
+    n_threads=4,
+    n_gpu_layers=20,
+    use_mlock=True,
+    chat_format="chatml",  # ✅ 强制指定 Mistral instruct 格式
+    verbose=True            # ✅ 可选，debug 时查看 token 输出
 )
 
-# === Load Model & Tokenizer ===
-tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
-model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-large")
-model.to(device)
-model.eval()
-
 # === Inference Function ===
-def get_flan_response(prompt: str, max_new_tokens=200):
+def get_model_response(prompt: str, temperature=0.3, top_p=0.9, max_new_tokens=512):
     try:
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(device)
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=True,             # ✅ 开启采样模式
-                temperature=0.7,            # ✅ 控制创意程度（0.7 通常比较平衡）
-                top_p=0.9                   # ✅ 核采样
-            )
-        return tokenizer.decode(outputs[0], skip_special_tokens=True)
+        output = llm(
+            prompt,
+            max_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            echo=False,
+        )
+        return output["choices"][0]["text"].strip()
     except Exception as e:
         return f"⚠️ Error: {str(e)}"
