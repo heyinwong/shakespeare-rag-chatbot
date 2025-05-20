@@ -4,9 +4,9 @@ import re
 import html
 from dotenv import load_dotenv
 from utils.styles import set_custom_style
-from core.search import load_faiss_index, search_similar
+from core.search_quote import load_faiss_index_quote, search_same
 from core.responder import get_model_response
-
+from core.match_scene import load_faiss_index_scene, search_scene
 st.set_page_config(page_title="Whispers of Will", layout="centered")
 set_custom_style()
 load_dotenv()
@@ -82,8 +82,8 @@ Now the user asks:
 
     if mode == "scene":
         level = "scene"
-        df, index = load_faiss_index(level)
-        raw_results = search_similar(user_input, df, index, level=level, top_k=3)
+        df, index = load_faiss_index_scene()
+        raw_results = search_scene(user_input, df, index, top_k=3)
         if raw_results:
             r = raw_results[0]
             scene_text = safe_truncate(r['text'])
@@ -97,9 +97,11 @@ Scene: {r['act']}, {r['scene']} from {r['play']}
 Content:
 {scene_text}
 
-Please summarise this scene in plain modern English. Mention the play and the scene.
+Your task is to summarise this scene in plain modern English, in 3-5 sentences. Also mention the play and the scene.
 
-Do not make up the story. Summarise based on what you have.
+Base your summary strictyly on the content provided. Do not invent characters, events, or dialogue that are not present in the excerpt.
+
+Do not use markdown formatiing, ehadings, or stylised text.
 """.strip()
         else:
             base_prompt = f"""
@@ -113,8 +115,8 @@ Unfortunately, no matching scene was found. Please respond based on your general
     elif mode == "quote":
         level = "sentence"
         quote_text = extract_quoted_phrase(user_input)
-        df, index = load_faiss_index(level)
-        raw_results = search_similar(quote_text, df, index, level=level, top_k=3)
+        df, index = load_faiss_index_quote(level)
+        raw_results = search_same(quote_text, df, index, level=level, top_k=3)
         results = filter_relevant_quote(raw_results, user_input)
         if results:
             r = results[0]
@@ -195,8 +197,7 @@ for message in reversed(st.session_state.chat_history):
             <strong>You:</strong><br>{message['text']}
         </div>""", unsafe_allow_html=True)
     else:
-        clean = re.sub(r"[*_#`]", "", message["text"])
-        escaped = html.escape(clean)
+        escaped = html.escape(message['text'])
         st.markdown(f"""
         <div style='background-color: #f9f1e7; padding: 1rem; margin: 1rem 0; border-radius: 12px; color: #2b1d0e; border: 2px solid #c76b3e; max-width: 80%; margin-right: auto;'>
             <strong>The Bard:</strong><br><pre style='white-space: pre-wrap; margin: 0;'>{escaped}</pre>

@@ -10,8 +10,8 @@ llm = Llama(
     n_threads=4,
     n_gpu_layers=20,
     use_mlock=True,
-    chat_format="chatml",  # ✅ 强制指定 Mistral instruct 格式
-    verbose=True            # ✅ 可选，debug 时查看 token 输出
+    chat_format="chatml",  
+    verbose=True           
 )
 
 # === Inference Function ===
@@ -26,4 +26,4 @@ def get_model_response(prompt: str, temperature=0.3, top_p=0.9, max_new_tokens=5
         )
         return output["choices"][0]["text"].strip()
     except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        return f" Error: {str(e)}"

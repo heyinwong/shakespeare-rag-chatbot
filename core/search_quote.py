@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 _model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # === 加载 FAISS 索引 + 对应数据表 ===
-def load_faiss_index(level="scene"):
+def load_faiss_index_quote(level="scene"):
     data_path = "data/scene_level_quote.pkl"
     index_path = "data/scene_level_quote.faiss"
     df = pd.read_pickle(data_path)
@@ -25,7 +25,7 @@ def extract_snippet(scene_text, query, max_chars=5000):
     return scene_text[start:end].strip()
 
 # === 主检索函数 ===
-def search_similar(query, data_df, faiss_index, level="scene", top_k=5):
+def search_same(query, data_df, faiss_index, level="scene", top_k=5):
     query_vec = _model.encode([query])
     D, I = faiss_index.search(query_vec, top_k)
 
