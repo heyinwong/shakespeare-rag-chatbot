@@ -1,69 +1,71 @@
-# 933 Assignment – Shakespeare AI (Local Model Version)
+# CSIT933 Assignment – Shakespeare AI Assistant (Local Model Edition)
 
-This is the code repository for the CSIT933 assignment, adapted from the earlier **Character Echoes** project.  
-The current version removes all external API dependencies and fully supports **offline generation and retrieval** using open-source models.
-
----
-
-## Features
-
-- **Roleplay with Shakespearean Characters**  
-  Converse with Hamlet, Lady Macbeth, Juliet, Othello, and more. Each character responds with their unique style and Shakespearean tone, powered by `flan-t5-small`.
-
-- **Quote Search Engine (FAISS)**  
-  Ask anything, and the system retrieves relevant lines from the entire Shakespeare corpus using `distilBERT` + `FAISS` vector search.
-
-- **Scene Summarisation in Modern English**  
-  The system automatically summarizes surrounding lines (scene context) using `flan-t5-small`.
-
-- **Fully Offline (No API Key Needed)**  
-  All retrieval and generation are handled locally. The original OpenAI API backend has been removed.
+This is the final implementation for the CSIT933 Shakespeare Chatbot assignment.  
+It supports multi-turn question answering, quote interpretation, and scene summarisation—all **fully offline** using open-source small models.
 
 ---
 
-## Example Use Cases
+## Key Features
 
-- "Summarize Act 3 Scene 1 of Macbeth in modern English."
-- "Hamlet, what do you think about revenge?"
-- "Find a quote about fate in King Lear."
-- "Juliet, what does love mean to you?"
+- **Quote Reterival Understanding**
+
+  - Retrieve famous lines using FAISS semantic search (MiniLM)
+  - Explain context, speaker, and meaning with Mistral-7B
+
+- **Scene Summarisation**
+
+  - Locate scene excerpts and generate modern-English summaries
+
+- **Multi-turn General QA**
+
+  - Answer factual or thematic questions about Shakespeare's plays
+  - Keeps memory of recent conversation summaries
+
+- **Fully Local**
+  - No OpenAI / API keys needed
+  - Models run offline using `mistral-7b-instruct.Q4_K_M.gguf` + SentenceTransformers (MiniLM)
 
 ---
 
 ## Project Structure
 
 ```
-├── app.py                  # Streamlit frontend
+├── app.py                      # Streamlit frontend
 ├── core/
-│   ├── loader.py           # Load characters, source files, prompts
-│   ├── responder.py        # Local model inference (flan / distilBERT)
-│   └── search.py           # FAISS-based quote retrieval
+│   ├── responder.py            # Mistral-7B local inference (llama-cpp)
+│   ├── search_quote.py         # Quote-level semantic search
+│   ├── match_scene.py          # Scene-level search & summarisation
 ├── data/
-│   ├── source/             # Shakespeare source .txt and processed files
-│   ├── faiss/              # FAISS index + corresponding line metadata (.pkl)
-│   └── character_prompts/  # Markdown prompts for roleplay characters
+│   ├── scene_level_quote.pkl   # FAISS metadata (Folger corpus)
+│   ├── scene_level_quote.faiss # FAISS index (MiniLM)
+│   └── text/                   # Text file of Shakespeare's work
+├── models/
+│   └── mistral-7b-instruct...  # Quantized GGUF file (Q4_K_M)
+├── utils/
+│   └── styles.py               # UI customization
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Setup Instructions (Local)
+## Setup Instructions
 
-1. Install dependencies:
+1. **Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Run the preprocessing steps (only needed once):
+2. **Download Model**
+   Download a quantized Mistral model and place it in the `models/` directory.
+   For this project, we use `Mistral-7B-Instruct-v0.1.Q4_K_M` (GGUF format).
+   You can find the model on Hugging Face here:
+   [https://huggingface.co/itlwas/Mistral-7B-Instruct-v0.1-Q4_K_M-GGUF](https://huggingface.co/itlwas/Mistral-7B-Instruct-v0.1-Q4_K_M-GGUF)
 
-```bash
-python data/source/split_clean_lines.py
-python data/source/build_faiss_index.py
-```
+   > Ensure the downloaded `.gguf` model file is saved in the `./models/` folder and that the file name matches the path specified in `responder.py`.
 
-3. Run the app:
+3. **Run the app**
 
 ```bash
 streamlit run app.py
@@ -71,38 +73,38 @@ streamlit run app.py
 
 ---
 
-## Modes of Interaction
+## Capabilities by Assignment Requirement
 
-- `Ask the Bard`
-
-  - → **Quote Retrieval** (retrieves original Shakespeare line)
-  - → **Scene Summary** (summarizes context in modern English)
-
-- `Roleplay`
-  - Choose a character and chat with them in their poetic tone
-
-> All logic is handled locally using pre-trained models. No fine-tuning or external calls required.
+| Task Description                                    | Supported |
+| --------------------------------------------------- | --------- |
+| Scene summarisation in modern English               | ✅        |
+| Retrieval and explanation of famous quotes          | ✅        |
+| General questions about characters/events/themes    | ✅        |
+| Multi-turn memory using summarised exchange history | ✅        |
 
 ---
 
-## Deployment
+## Models Used
 
-This app can be deployed locally or on platforms like **Streamlit Cloud** or **Hugging Face Spaces**, provided the models and index files are uploaded.  
-No API Key required. All dependencies are free and open source.
+- **Retrieval**: `sentence-transformers/all-MiniLM-L6-v2`
+- **Generation**: `mistral-7b-instruct.Q4_K_M.gguf` via `llama-cpp-python`
+- **Data Source**: Cleaned text from the [Folger Shakespeare Library](https://www.folger.edu/)
 
 ---
 
-## Attribution
+## Dependencies
 
-- Shakespeare texts from [Project Gutenberg](https://www.gutenberg.org/)
-- Models:
-  - `distilBERT` for embedding & quote retrieval
-  - `flan-t5-small` for summarisation & roleplay
-- Search backend: [FAISS](https://github.com/facebookresearch/faiss)
-- Frontend: [Streamlit](https://streamlit.io)
+- `streamlit`
+- `sentence-transformers`
+- `faiss-cpu`
+- `llama-cpp-python`
+- `pandas`
+- `torch` (MPS/CPU/GPU backend)
 
 ---
 
 ## Author
 
-**Xixian Huang**
+**Xixian Huang**  
+University of Wollongong  
+CSIT933 – Assignment 2, 2025
