@@ -47,15 +47,16 @@ def safe_truncate(text, max_chars=6000):
 def summarize_exchange(user_input: str, bard_response: str) -> str:
     summarization_prompt = f"""
 You are a concise assistant. Summarize the following Q&A in one short sentence (under 20 words), stating only what the user asked about.
-
+You are a factual assistant. Never guess. Only answer from the retrieved play, act and scene.
+You are a concise Shakespeare assistant. Only answer the question. Do not ask follow-up questions. Do not repeat the same response.
 Question: {user_input}
 Answer: {bard_response}
 Summary:""".strip()
 
     summary = get_model_response(
         summarization_prompt,
-        temperature=0.3,
-        top_p=0.8,
+        temperature=0.0,
+        top_p=0.3,
         max_new_tokens=50
     )
     print("[DEBUG] Memory summary:", summary.strip())
@@ -83,9 +84,11 @@ Now the user asks:
     if mode == "scene":
         level = "scene"
         df, index = load_faiss_index_scene()
-        raw_results = search_scene(user_input, df, index, top_k=3)
+        raw_results = search_scene(user_input, df, index, top_k=10)
         if raw_results:
             r = raw_results[0]
+            context_lines = [f"Play: {r['play']}, Act {r['act']}, Scene {r['scene']}\n{r['text']}"]
+            context = "\n\n".join(context_lines)
             scene_text = safe_truncate(r['text'])
             base_prompt = f"""
 You are a Shakespeare expert.
@@ -98,10 +101,11 @@ Content:
 {scene_text}
 
 Your task is to summarise this scene in plain modern English, in 3-5 sentences. Also mention the play and the scene.
+Do NOT mix different scenes. Do NOT include the result from the user's previous query.
 
-Base your summary strictyly on the content provided. Do not invent characters, events, or dialogue that are not present in the excerpt.
-
-Do not use markdown formatiing, ehadings, or stylised text.
+Base your summary strictly on the content provided. Do not invent characters, events, or dialogue that are not present in the excerpt.
+You are a concise Shakespeare assistant. Only answer the question. Do not ask follow-up questions. Do not repeat the same response.
+Do not use markdown formatting, headings, or stylised text.
 """.strip()
         else:
             base_prompt = f"""
@@ -116,12 +120,14 @@ Unfortunately, no matching scene was found. Please respond based on your general
         level = "sentence"
         quote_text = extract_quoted_phrase(user_input)
         df, index = load_faiss_index_quote(level)
-        raw_results = search_same(quote_text, df, index, level=level, top_k=3)
+        raw_results = search_same(quote_text, df, index, level=level, top_k=10)
         results = filter_relevant_quote(raw_results, user_input)
         if results:
             r = results[0]
+            context_lines = [f"Play: {r['play']}, Act {r['act']}, Scene {r['scene']}\n{r['text']}"]
+            context = "\n\n".join(context_lines)
             base_prompt = f"""
-You are a Shakespeare expert.
+You are a Shakespeare expert and summarizer.
 
 The user is asking about this quote:
 
@@ -129,7 +135,19 @@ The user is asking about this quote:
 
 It appears in {r['play']}, {r['act']}, {r['scene']}.
 
+Use only the context provided below. Summarize specifically based on the act, scene, and play.
+Do NOT make up quotes or mix different scenes. Do NOT include the result from the user's previous query.
+
+Context:
+{context}
+
+Task: Summarize the retrieved text from the correct play, act, and scene.
+
+Summary:
+
 Please always answer the user where the quote appears and explain what it means in plain modern English and why it is important or well-known. Keep your tone helpful and natural.
+You are a factual assistant. Never guess. Only answer from the retrieved play, act and scene.
+You are a concise Shakespeare assistant. Only answer the question. Do not ask follow-up questions. Do not repeat the same response.
 """.strip()
         else:
             base_prompt = f"""
@@ -145,12 +163,13 @@ You are a helpful Shakespeare expert.
 The user asked: "{user_input}"
 
 Please answer clearly and accurately, referring to known facts or themes from Shakespeare's plays. If appropriate, mention the character, act, or scene—but only if you are confident.
+You are a concise Shakespeare assistant. Only answer the question. Do not ask follow-up questions. Do not repeat the same response.
 """.strip()
 
     final_prompt = f"{memory_prefix}\n\n{base_prompt}" if memory_prefix else base_prompt
     print("[DEBUG] Final prompt:\n", final_prompt[:800] + "..." if len(final_prompt) > 800 else final_prompt)
 
-    response = get_model_response(final_prompt, temperature=0.2, top_p=0.9, max_new_tokens=512)
+    response = get_model_response(final_prompt, temperature=0.0, top_p=0.3, max_new_tokens=512)
 
     if "memory_chain" not in st.session_state:
         st.session_state.memory_chain = []

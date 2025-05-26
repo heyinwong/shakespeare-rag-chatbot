@@ -25,7 +25,7 @@ def extract_snippet(scene_text, query, max_chars=5000):
     return scene_text[start:end].strip()
 
 # === 主检索函数 ===
-def search_same(query, data_df, faiss_index, level="scene", top_k=5):
+def search_same(query, data_df, faiss_index, level="scene", top_k=10):
     query_vec = _model.encode([query])
     D, I = faiss_index.search(query_vec, top_k)
 
