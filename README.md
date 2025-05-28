@@ -61,7 +61,7 @@ pip install -r requirements.txt
    Download a quantized Mistral model and place it in the `models/` directory.
    For this project, we use `Mistral-7B-Instruct-v0.1.Q4_K_M` (GGUF format).
    You can find the model on Hugging Face here:
-   [https://huggingface.co/itlwas/Mistral-7B-Instruct-v0.1-Q4_K_M-GGUF](https://huggingface.co/itlwas/Mistral-7B-Instruct-v0.1-Q4_K_M-GGUF)
+   [Mistral-7B-Instruct-v0.1-Q4_K_M-GGUF](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/tree/main)
 
    > Ensure the downloaded `.gguf` model file is saved in the `./models/` folder and that the file name matches the path specified in `responder.py`.
 
