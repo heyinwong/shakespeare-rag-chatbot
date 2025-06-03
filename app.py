@@ -4,7 +4,7 @@ import re
 import html
 from dotenv import load_dotenv
 from utils.styles import set_custom_style
-from core.search_quote import load_faiss_index_quote, search_same
+from core.search_quote import load_scene_quote_data, search_quote_exact 
 from core.responder import get_model_response
 from core.match_scene import load_faiss_index_scene, search_scene
 st.set_page_config(page_title="Whispers of Will", layout="centered")
@@ -113,24 +113,28 @@ Unfortunately, no matching scene was found. Please respond based on your general
 """.strip()
 
     elif mode == "quote":
-        level = "sentence"
         quote_text = extract_quoted_phrase(user_input)
-        df, index = load_faiss_index_quote(level)
-        raw_results = search_same(quote_text, df, index, level=level, top_k=3)
-        results = filter_relevant_quote(raw_results, user_input)
+        df = load_scene_quote_data()
+        raw_results = search_quote_exact(quote_text, df, top_k=3)
+        results = raw_results
         if results:
             r = results[0]
             base_prompt = f"""
-You are a Shakespeare expert.
+        You are a Shakespeare expert.
 
-The user is asking about this quote:
+        The user is asking about this quote:
 
-"{quote_text}"
+        "{quote_text}"
 
-It appears in {r['play']}, {r['act']}, {r['scene']}.
+        It appears in {r['location']['play']}, {r['location']['act']}, {r['location']['scene']}.
 
-Please always answer the user where the quote appears and explain what it means in plain modern English and why it is important or well-known. Keep your tone helpful and natural.
-""".strip()
+        Here is the full scene it appears in:
+
+        {safe_truncate(r['scene_text'])}
+
+        Please explain what this quote means in plain modern English and why it is important or well-known. 
+        Make sure your answer refers directly to the quote and its context.
+        """.strip()
         else:
             base_prompt = f"""
 The user asked: "{user_input}"

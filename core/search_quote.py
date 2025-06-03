@@ -1,85 +1,50 @@
-import faiss
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 
-# === 加载模型 ===
-_model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# === 加载 FAISS 索引 + 对应数据表 ===
-def load_faiss_index_quote(level="scene"):
+# === 加载数据 ===
+def load_scene_quote_data():
+    """
+    读取带有 scene_text 的 scene-level quote 数据。
+    返回 DataFrame。
+    """
     data_path = "data/scene_level_quote.pkl"
-    index_path = "data/scene_level_quote.faiss"
     df = pd.read_pickle(data_path)
-    index = faiss.read_index(index_path)
-    return df, index
+    return df
 
-# === 提取 query 附近片段（截断上下文）===
-def extract_snippet(scene_text, query, max_chars=5000):
-    if not scene_text:
-        return ""
-    idx = scene_text.lower().find(query.lower())
-    if idx == -1:
-        return scene_text[:max_chars].strip()
-    start = max(0, idx - max_chars // 2)
-    end = min(len(scene_text), idx + max_chars // 2)
-    return scene_text[start:end].strip()
-
-# === 主检索函数 ===
-def search_same(query, data_df, faiss_index, level="scene", top_k=5):
-    query_vec = _model.encode([query])
-    D, I = faiss_index.search(query_vec, top_k)
-
+# === 仅通过关键词查找 quote 对应的 scene ===
+def search_quote_exact(query, df, top_k=1):
+    """
+    在 scene_text 中查找包含 query 的 scene。
+    返回包含 quote、location 和 scene_text 的结果列表。
+    """
     results = []
-    found_match = False
-    print(f"\n🔍 Top {top_k} semantic matches for: '{query}'\n")
 
-    for rank, idx in enumerate(I[0]):
-        row = data_df.iloc[idx]
-        scene_text = row.get("scene_text", "")
+    matched_df = df[df["scene_text"].fillna("").str.contains(query, case=False, na=False)]
 
-        if query.lower() in scene_text.lower():
-            found_match = True
+    if matched_df.empty:
+        print(f"❌ No exact match found for: '{query}'")
+        return []
 
-        if level == "quote":
-            displayed_text = query  # ✅ 返回原始 query
-        else:
-            displayed_text = extract_snippet(scene_text, query, max_chars=5000)
-
+    for _, row in matched_df.head(top_k).iterrows():
         result = {
-            "text": displayed_text,
-            "index": idx,
-            "play": row.get("play", ""),
-            "act": row.get("act", ""),
-            "scene": row.get("scene", ""),
-            "score": float(D[0][rank]),
-            "full_scene": scene_text if level == "scene" else None
-        }
-
-        print(f"{rank+1}. {result['score']:.4f} | {result['play']} {result['act']} {result['scene']}")
-        print(f"{displayed_text[:120]}...\n")
-        results.append(result)
-
-    if not found_match:
-        if "scene_text" not in data_df.columns:
-            print("⚠️ 'scene_text' column not found. Skipping fallback.")
-            return results
-
-        fallback_df = data_df[data_df["scene_text"].fillna("").str.contains(query, case=False, na=False)]
-        if not fallback_df.empty:
-            row = fallback_df.iloc[0]
-            fallback_text = query if level == "quote" else extract_snippet(row.get("scene_text", ""), query)
-            result = {
-                "text": fallback_text,
-                "index": row.name,
+            "quote": query,
+            "location": {
                 "play": row.get("play", ""),
                 "act": row.get("act", ""),
-                "scene": row.get("scene", ""),
-                "score": -1.0,
-                "full_scene": row.get("scene_text", "") if level == "scene" else None
-            }
-            print(f"Fallback Result: {result['play']} {result['act']} {result['scene']}")
-            results = [result]
-        else:
-            print("❌ No fallback match found in full scene text.")
+                "scene": row.get("scene", "")
+            },
+            "scene_text": row.get("scene_text", "")
+        }
+        results.append(result)
 
     return results
+
+# === 示例调用 ===
+if __name__ == "__main__":
+    df = load_scene_quote_data()
+    query = "to be or not to be"  # 可替换为任意检索语句
+    matches = search_quote_exact(query, df, top_k=1)
+
+    for match in matches:
+        print(f"\n🎭 {match['location']['play']} Act {match['location']['act']} Scene {match['location']['scene']}")
+        print(f"📜 Quote: {match['quote']}")
+        print(f"🖋️ Scene snippet:\n{match['scene_text'][:300]}...\n")
