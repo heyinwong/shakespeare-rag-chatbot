@@ -141,6 +141,8 @@ pip install -r requirements.txt
 
 - `Mistral-7B-Instruct-Q4_K_M`
 - Place into `models/` folder
+- Model is avaiavle at below:
+  https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/tree/main
 
 3. **Run the app**:
 
