@@ -1,4 +1,4 @@
-# Whispers of Will: A Shakespeare AI Assistant
+# Whispers of Will: A Shakespeare AI Chatbot
 
 A locally-run chatbot that interprets Shakespeare’s plays, quotes, and characters — fully offline using open-source models.
 
