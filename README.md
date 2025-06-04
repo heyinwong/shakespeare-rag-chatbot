@@ -77,6 +77,12 @@ Ask why characters did something, or explore themes:
 
 ---
 
+### 6. Semantic Search Backend
+
+MiniLM uses semenatic search to reterive relavant context based on FAISS
+
+![backend](./screenshots/backend.png)
+
 ---
 
 ## FAISS Index Construction
