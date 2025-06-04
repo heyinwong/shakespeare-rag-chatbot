@@ -25,7 +25,7 @@ All of this is done **completely offline**, using:
 
 ## Key Features (with Screenshots)
 
-### 🔹 1. General Web Interface
+### 1. General Web Interface
 
 The chatbot runs on a clean and medieval-inspired Streamlit frontend:
 
