@@ -15,12 +15,11 @@ def process_file(filepath, play_name):
     skip_until_act = True
 
     for line in lines:
-        # 标准化空行
         if line.strip() == "":
-            scene_buffer.append("")  # 保留段落结构
+            scene_buffer.append("")  # save paragraph structure
             continue
 
-        # 跳过 Dramatis Personae 等非正文
+        # skip Dramatis Personae 
         if skip_until_act:
             if re.match(r"^ACT\b", line, re.IGNORECASE):
                 skip_until_act = False
@@ -43,7 +42,7 @@ def process_file(filepath, play_name):
         else:
             scene_buffer.append(line.strip())
 
-    # 收尾
+    # closure
     if scene_buffer:
         scene_records.append({
             "scene_text": "\n".join(scene_buffer).strip(),
@@ -52,18 +51,18 @@ def process_file(filepath, play_name):
             "play": play_name
         })
 
-# 遍历所有剧本
+# go through all plays
 for filename in os.listdir(input_dir):
     if filename.endswith(".txt"):
         path = os.path.join(input_dir, filename)
         play_name = filename.replace("_TXT_FolgerShakespeare.txt", "").replace("-", " ").title()
-        print(f"📖 Processing: {play_name}")
+        print(f" Processing: {play_name}")
         process_file(path, play_name)
 
-# 保存
+# save
 os.makedirs("output", exist_ok=True)
 pd.DataFrame(scene_records).to_pickle("output/scene.pkl")
-print(f"\n✅ 完成！共提取 {len(scene_records)} 个 scene")
+print(f"\nFinished! Total {len(scene_records)} scenes")
 
 
 

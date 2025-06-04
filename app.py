@@ -1,3 +1,4 @@
+# ====== Imports and Setup ======
 import streamlit as st
 import os
 import re
@@ -7,14 +8,20 @@ from utils.styles import set_custom_style
 from core.search_quote import load_scene_quote_data, search_quote_exact 
 from core.responder import get_model_response
 from core.match_scene import load_faiss_index_scene, search_scene
+
+# Page layout and style
 st.set_page_config(page_title="Whispers of Will", layout="centered")
 set_custom_style()
 load_dotenv()
 
+# ====== Utility Functions ======
+
+# Extract the first quoted phrase from the user's message
 def extract_quoted_phrase(text: str) -> str:
     matches = re.findall(r'"(.*?)"', text)
     return matches[0] if matches else ""
 
+# Re-rank candidate quotes by keyword match or phrase match
 def filter_relevant_quote(results, user_input):
     quote_match = re.search(r'"(.+?)"', user_input)
     if quote_match:
@@ -30,13 +37,16 @@ def filter_relevant_quote(results, user_input):
     scored.sort(reverse=True, key=lambda x: x[0])
     return [scored[0][1]] if scored else []
 
+# Check if the user is asking for a scene summary
 def is_scene_summary(text: str) -> bool:
     keywords = ["summarise", "summarize", "summary", "what happened", "explain the scene"]
     return any(k in text.lower() for k in keywords)
 
+# Check if user quoted any phrase (e.g. "to be or not to be")
 def has_quoted_phrase(text: str) -> bool:
     return bool(re.findall(r'"(.*?)"', text))
 
+# Truncate long text safely, ending at a sentence boundary if possible
 def safe_truncate(text, max_chars=6000):
     truncated = text[:max_chars]
     last_period = truncated.rfind(".")
@@ -44,6 +54,7 @@ def safe_truncate(text, max_chars=6000):
         return truncated[:last_period+1]
     return truncated
 
+# Generate a one-line summary for memory tracking
 def summarize_exchange(user_input: str, bard_response: str) -> str:
     summarization_prompt = f"""
 You are a concise assistant. Summarize the following Q&A in one short sentence (under 20 words), stating only what the user asked about.
@@ -61,7 +72,10 @@ Summary:""".strip()
     print("[DEBUG] Memory summary:", summary.strip())
     return summary.strip()
 
+# ====== Core Logic: Handle Bard Query ======
+
 def handle_bard_query(user_input: str):
+    # Decide which mode to use: scene / quote / general
     if is_scene_summary(user_input):
         mode = "scene"
     elif has_quoted_phrase(user_input):
@@ -71,6 +85,7 @@ def handle_bard_query(user_input: str):
 
     print(f"[DEBUG] Mode: {mode}")
 
+    # Build context-aware memory prefix if previous conversations exist
     memory_prefix = ""
     if "memory_chain" in st.session_state and st.session_state.memory_chain:
         recent_memories = "\n".join(st.session_state.memory_chain[-5:])
@@ -80,6 +95,7 @@ def handle_bard_query(user_input: str):
 Now the user asks:
 "{user_input}""".strip()
 
+    # === SCENE MODE ===
     if mode == "scene":
         level = "scene"
         df, index = load_faiss_index_scene()
@@ -112,6 +128,7 @@ The user asked to summarise a scene: "{user_input}"
 Unfortunately, no matching scene was found. Please respond based on your general knowledge of Shakespeare's plays.
 """.strip()
 
+    # === QUOTE MODE ===
     elif mode == "quote":
         quote_text = extract_quoted_phrase(user_input)
         df = load_scene_quote_data()
@@ -142,6 +159,7 @@ The user asked: "{user_input}"
 Unfortunately, no matching quote was found. Please respond using your general knowledge of Shakespeare's works.
 """.strip()
 
+    # === GENERAL MODE ===
     else:
         base_prompt = f"""
 You are a helpful Shakespeare expert.
@@ -156,6 +174,7 @@ Please answer clearly and accurately, referring to known facts or themes from Sh
 
     response = get_model_response(final_prompt, temperature=0.2, top_p=0.9, max_new_tokens=512)
 
+    # Store memory summary for context tracking
     if "memory_chain" not in st.session_state:
         st.session_state.memory_chain = []
     summary = summarize_exchange(user_input, response)
@@ -163,7 +182,7 @@ Please answer clearly and accurately, referring to known facts or themes from Sh
 
     return response
 
-# ====== UI Layout ======
+# ====== UI: Input and Interaction ======
 st.title("Whispers of Will")
 st.markdown("<div class='bard-label'>Ask something:</div>", unsafe_allow_html=True)
 user_input = st.text_area("Your question", height=130, label_visibility="collapsed")
@@ -174,16 +193,19 @@ with col1:
 with col2:
     clear = st.button("Clear", use_container_width=True)
 
+# ====== Session State Init ======
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "memory_chain" not in st.session_state:
     st.session_state.memory_chain = []
 
+# ====== Clear Button Logic ======
 if clear:
     st.session_state.chat_history = []
     st.session_state.memory_chain = []
     st.rerun()
 
+# ====== Respond Button Logic ======
 if respond and user_input.strip():
     with st.spinner("Summoning response..."):
         response = handle_bard_query(user_input)
@@ -193,7 +215,7 @@ if respond and user_input.strip():
 elif respond:
     st.warning("Please enter a message.")
 
-# ====== History View ======
+# ====== Display Chat History ======
 for message in reversed(st.session_state.chat_history):
     if message["role"] == "user":
         st.markdown(f"""
@@ -208,10 +230,10 @@ for message in reversed(st.session_state.chat_history):
         </div>""", unsafe_allow_html=True)
 
 # ====== Footer ======
-st.markdown("---")
+
 st.markdown(
     "<div style='text-align:center; font-size: 0.85rem; margin-top: 2rem;'>"
-    "Crafted with ☕ by <strong>Xixian Huang</strong>"
+    "Built for CSCI933 — Shakespeare Chatbot Project"
     "</div>",
     unsafe_allow_html=True
 )

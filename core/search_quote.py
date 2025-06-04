@@ -1,27 +1,27 @@
 import pandas as pd
 
-# === 加载数据 ===
+# === load data ===
 def load_scene_quote_data():
     """
-    读取带有 scene_text 的 scene-level quote 数据。
-    返回 DataFrame。
+    read data wtih scene_text and scene-level quote
+    return format as DataFrame。
     """
     data_path = "data/scene_level_quote.pkl"
     df = pd.read_pickle(data_path)
     return df
 
-# === 仅通过关键词查找 quote 对应的 scene ===
+# === use key word searching to find the related scene with quote ===
 def search_quote_exact(query, df, top_k=1):
     """
-    在 scene_text 中查找包含 query 的 scene。
-    返回包含 quote、location 和 scene_text 的结果列表。
+    find scene that contains query in scene_text 
+    return result list with quote、location and scene_text 
     """
     results = []
 
     matched_df = df[df["scene_text"].fillna("").str.contains(query, case=False, na=False)]
 
     if matched_df.empty:
-        print(f"❌ No exact match found for: '{query}'")
+        print(f" No exact match found for: '{query}'")
         return []
 
     for _, row in matched_df.head(top_k).iterrows():
@@ -38,13 +38,13 @@ def search_quote_exact(query, df, top_k=1):
 
     return results
 
-# === 示例调用 ===
+# === example use ===
 if __name__ == "__main__":
     df = load_scene_quote_data()
-    query = "to be or not to be"  # 可替换为任意检索语句
+    query = "to be or not to be"  # can be any sentence
     matches = search_quote_exact(query, df, top_k=1)
 
     for match in matches:
-        print(f"\n🎭 {match['location']['play']} Act {match['location']['act']} Scene {match['location']['scene']}")
-        print(f"📜 Quote: {match['quote']}")
-        print(f"🖋️ Scene snippet:\n{match['scene_text'][:300]}...\n")
+        print(f"\n {match['location']['play']} Act {match['location']['act']} Scene {match['location']['scene']}")
+        print(f" Quote: {match['quote']}")
+        print(f" Scene snippet:\n{match['scene_text'][:300]}...\n")
