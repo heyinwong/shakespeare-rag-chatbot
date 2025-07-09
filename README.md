@@ -2,7 +2,6 @@
 
 A locally-run chatbot that interprets Shakespeare’s plays, quotes, and characters — fully offline using open-source models.
 
-> **Built for CSIT933 – Assignment 2 (2025)**
 
 ---
 
